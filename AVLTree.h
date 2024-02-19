@@ -17,15 +17,17 @@ class AVLTree{
     void rotate(AVLTree<T>::Node*);
     void rotateRight(AVLTree<T>::Node*);
     void rotateLeft(AVLTree<T>::Node*);
-    void updateHeights();
-    int updateHeights(AVLTree<T>::Node*);
+    void updateHeights(AVLTree<T>::Node*);
     int balanceFactor(AVLTree<T>::Node*);
+    AVLTree<T>::Node* find(const T&);
 
   public:
     AVLTree<T>::Node* root;
     AVLTree() : root(nullptr){}
     ~AVLTree();
     void insert(const T&);
+    bool has(const T&);
+    void remove(const T&);
 };
 
 template <typename T>
@@ -43,6 +45,93 @@ void AVLTree<T>::removeAll(AVLTree<T>::Node* node) {
         removeAll(node->r);
         delete node;
     }
+}
+
+template <typename T>
+bool AVLTree<T>::has(const T& data) {
+    return find(data) != nullptr;
+}
+
+template <typename T>
+typename AVLTree<T>::Node* AVLTree<T>::find(const T& data) {
+    AVLTree<T>::Node* curr = root;
+    while(curr != nullptr) {
+        if(curr->data == data)
+            return curr;
+        else if(curr->data > data)
+            curr = curr->l;
+        else
+            curr = curr->r;
+    }
+    return nullptr;
+}
+
+template <typename T>
+void AVLTree<T>::remove(const T& data) {
+    AVLTree<T>::Node* curr = find(data);
+    if(curr == nullptr)
+        return;
+    // node has no children
+    if(curr->l == nullptr && curr->r == nullptr){
+        if(curr->p == nullptr)
+            root = nullptr;
+        else if(curr->p->l == curr)
+            curr->p->l = nullptr;
+        else
+            curr->p->r = nullptr;
+    }
+    // node has right child
+    else if(curr->l == nullptr){
+        if(curr->p == nullptr){
+            root = curr->r;
+            root->p = nullptr;
+        }
+        else if(curr->p->l == curr){
+            curr->p->l = curr->r;
+            curr->r->p = curr->p;
+        }
+        else{
+            curr->p->r = curr->r;
+            curr->r->p = curr->p;
+        }
+    }
+    // node has left child
+    else if(curr->r == nullptr){
+        if(curr->p == nullptr){
+            root = curr->l;
+            root->p = nullptr;
+        }
+        else if(curr->p->l == curr){
+            curr->p->l = curr->l;
+            curr->l->p = curr->p;
+        }
+        else{
+            curr->p->r = curr->l;
+            curr->l->p = curr->p;
+        }
+    }
+    // node has two children
+    else{
+        // swap curr with the smallest value in the right subtree
+        AVLTree<T>::Node* temp = curr->r;
+        while(temp->l != nullptr)
+            temp = temp->l;
+        curr->data = temp->data;
+        if(temp->p->l == temp)
+            temp->p->l = temp->r;
+        else 
+            temp->p->r = temp->r;
+        curr = temp;
+    }
+    // update heights in path from curr to root
+    updateHeights(curr->p);
+    // rotate in path from curr to root
+    AVLTree<T>::Node* temp = curr;
+    while(temp != nullptr){
+        rotate(temp);
+        temp = temp->p;
+    }
+    delete curr;
 }
 
 /*
@@ -66,7 +155,7 @@ void AVLTree<T>::insert(const T& data) {
                 if (curr->l == nullptr) {
                     curr->l = new AVLTree<T>::Node(data);
                     curr->l->p = curr;
-                    updateHeights();
+                    updateHeights(curr->l);
                     break;
                 }
                 else
@@ -76,7 +165,7 @@ void AVLTree<T>::insert(const T& data) {
                 if (curr->r == nullptr) {
                     curr->r = new AVLTree<T>::Node(data);
                     curr->r->p = curr;
-                    updateHeights();
+                    updateHeights(curr->r);
                     break;
                 }
                 else
@@ -108,7 +197,8 @@ int AVLTree<T>::balanceFactor(AVLTree<T>::Node* node) {
 
 template <typename T>
 void AVLTree<T>::rotate(AVLTree<T>::Node* node) {
-  int bf = balanceFactor(node); // if the balance factor is |2| then a rotate is needed
+    if(node == nullptr) return;
+    int bf = balanceFactor(node); // if the balance factor is |2| then a rotate is needed
     if (bf == -2) {
         if (balanceFactor(node->r) == 1) {
             rotateRight(node->r);
@@ -150,7 +240,8 @@ void AVLTree<T>::rotateRight(AVLTree<T>::Node* y) {
     else{
         y->l = nullptr;
     }
-    updateHeights();
+    updateHeights(y);
+    updateHeights(x->l);
 }
 
 template <typename T>
@@ -180,29 +271,17 @@ void AVLTree<T>::rotateLeft(AVLTree<T>::Node* x) {
     else{
         x->r = nullptr;
     }
-    updateHeights();
+    updateHeights(x);
+    updateHeights(y->r);
 }
 
 template <typename T>
-void AVLTree<T>::updateHeights() {
-    updateHeights(root);
-}
-
-template <typename T>
-int AVLTree<T>::updateHeights(AVLTree<T>::Node* node) {
+void AVLTree<T>::updateHeights(AVLTree<T>::Node* node) {
     if (node == nullptr) {
-        return -1;
+        return;
     }
     else {
-        int l = updateHeights(node->l);
-        int r = updateHeights(node->r);
-        if (l > r) {
-            node->h = l + 1;
-            return l + 1;
-        }
-        else {
-            node->h = r + 1;
-            return r + 1;
-        }
+        node->h = 1 + std::max((node->l == nullptr ? -1 : node->l->h), (node->r == nullptr ? -1 : node->r->h));
+        updateHeights(node->p);
     }
 }
